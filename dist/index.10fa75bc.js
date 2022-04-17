@@ -467,17 +467,9 @@ var _autoDefault = parcelHelpers.interopDefault(_auto);
 const API = new _fetchWrapper.FetchWrapper("https://firestore.googleapis.com/v1/projects/programmingjs-90a13/databases/(default)/documents/");
 const ENDPOINT = "eyoel";
 let myChart = {
-    destroy: ()=>{
-    }
 };
-const handleAdd = async (e)=>{
-    e.preventDefault();
-    let fat = Number(document.querySelector("#fat-input").value);
-    let protein = Number(document.querySelector("#protein-input").value);
-    let carbs = Number(document.querySelector("#carb-input").value);
-    let foodname = document.querySelector("#foods").value;
-    let foodChoosen = document.querySelector(".food-choosen");
-    let body = {
+const getPostData = ({ fat , protein , carbs , foodname  })=>{
+    return {
         fields: {
             fat: {
                 integerValue: fat
@@ -493,30 +485,33 @@ const handleAdd = async (e)=>{
             }
         }
     };
-    //posting data to thr firebase API
-    const newItem = await API.post(ENDPOINT, body);
-    _snackbarDefault.default.show("Food Item added successfully");
-    drawChart(carbs, protein, fat);
-    addToCalorieBox(newItem);
-    console.log({
-        newItem
+};
+const handleAdd = async (event)=>{
+    event.preventDefault();
+    let fat = Number(document.querySelector("#fat-input").value);
+    let protein = Number(document.querySelector("#protein-input").value);
+    let carbs = Number(document.querySelector("#carb-input").value);
+    let foodname = document.querySelector("#foods").value;
+    let foodChoosen = document.querySelector(".food-choosen");
+    const postData = getPostData({
+        fat,
+        protein,
+        carbs,
+        foodname
     });
-    //formField.value = "";
-    console.log(foodname);
+    //posting data to the firebase API
+    API.post(ENDPOINT, postData).then((newItem)=>{
+        _snackbarDefault.default.show("Food added successfully");
+        drawChart(carbs, protein, fat);
+        addToCalorieBox(newItem);
+    });
+//formField.value = "";
 };
 const addButton = document.querySelector("#add-button");
 addButton.addEventListener("click", handleAdd);
-const init = async ()=>{
-    const response = await API.get(ENDPOINT);
-    console.log({
-        response: response.documents
-    });
-    response.documents.map((item)=>addToCalorieBox(item)
-    );
-};
 const drawChart = (carbs, protein, fat)=>{
     const ctx = document.getElementById("myChart");
-    myChart.destroy();
+    if (myChart.destroy) myChart.destroy();
     myChart = new _autoDefault.default(ctx, {
         type: "bar",
         data: {
@@ -556,9 +551,17 @@ const drawChart = (carbs, protein, fat)=>{
         }
     });
 };
-function delCard() {
+function delCard(e) {
     console.log("delete card clicked");
+    e.target.parentElement.remove();
 }
+// attach delete event to the buttons added dynamically
+const attachDeleteEvent = ()=>{
+    const delBtns = document.querySelectorAll(".delBtn");
+    delBtns.forEach((delBtn)=>{
+        delBtn.addEventListener("click", delCard);
+    });
+};
 const totalCalories = (carbs, protein, fat)=>carbs * 4 + protein * 4 + fat * 9
 ;
 const addToCalorieBox = (item)=>{
@@ -566,12 +569,19 @@ const addToCalorieBox = (item)=>{
     const protein = item.fields.protein.integerValue;
     const fat = item.fields.fat.integerValue;
     const total = totalCalories(carb, protein, fat);
-    const card = `<div class="total-food-calories">\n    <h2 class="food-choosen">${item.fields.foodname.stringValue}</h2>\n    <p>Total calories: <span>${total}</span></p>\n    <span>Carbs:<span class="carbs">${carb}</span>g</span>\n    <span>protein:<span class="protein">${protein}</span>g</span>\n    <span>Fat:<span class="fat">${fat}</span>g</span>\n		<button class="delBtn" onclick="delCard()">Delete</button>\n  </div>`;
+    const card = `<div class="total-food-calories">\n    <h2 class="food-choosen">${item.fields.foodname.stringValue}</h2>\n    <p>Total calories: <span>${total}</span></p>\n    <span>Carbs:<span class="carbs">${carb}</span>g</span>\n    <span>protein:<span class="protein">${protein}</span>g</span>\n    <span>Fat:<span class="fat">${fat}</span>g</span>\n		<button class="delBtn">Delete</button>\n  </div>`;
     document.querySelector("#card-containers").insertAdjacentHTML("beforeend", card);
     let grandTotal = document.querySelector("#gross-calories-result").textContent;
     grandTotal = Number(grandTotal.replace(",", "")) + total;
     const result = _simpleNumberFormatterDefault.default(grandTotal);
     document.querySelector("#gross-calories-result").innerHTML = result;
+};
+const init = async ()=>{
+    API.get(ENDPOINT).then((response)=>{
+        response.documents.map((item)=>addToCalorieBox(item)
+        );
+        attachDeleteEvent();
+    });
 };
 init();
 
